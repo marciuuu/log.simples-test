@@ -1,33 +1,30 @@
 name: Sync Notion to Markdown
 
 on:
-  workflow_dispatch:      # Permite rodar manualmente clicando em um botão
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'  # Roda automaticamente todo dia à meia-noite
+    - cron: '0 0 * * *'
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
 
       - name: Sync Notion Pages
         uses: bndynet/github-action-notion@v3
         with:
           notion-token: ${{ secrets.NOTION_TOKEN }}
           root-page-id: ${{ secrets.NOTION_PAGE_ID }}
-          md-dir: ./content
-          download-assets: 'true'
+          output-dir: 'content'
+          cleanup-before: 'true'
 
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
+          git add content/
           git diff --quiet && git diff --staged --quiet || (git commit -m "docs: sync articles from Notion [skip ci]" && git push)
