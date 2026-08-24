@@ -14,13 +14,49 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Sync Notion Pages
-        uses: bndynet/github-action-notion@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          notion-token: ${{ secrets.NOTION_TOKEN }}
-          root-page-id: ${{ secrets.NOTION_PAGE_ID }}
-          output-dir: 'content'
-          cleanup-before: 'true'
+          node-version: 20
+
+      - name: Install Notion to Markdown CLI
+        run: npm install @notionhq/client notion-to-md
+
+      - name: Fetch and Convert Notion Content
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
+        run: |
+          node -e '
+          const { Client } = require("@notionhq/client");
+          const { NotionToMarkdown } = require("notion-to-md");
+          const fs = require("fs");
+          const path = require("path");
+
+          const notion = new Client({ auth: process.env.NOTION_TOKEN });
+          const n2m = new NotionToMarkdown({ notionClient: notion });
+
+          async function main() {
+            const pageId = process.env.NOTION_PAGE_ID.replace(/-/g, "");
+            console.log("Sincronizando página ID:", pageId);
+
+            const mdblocks = await n2m.pageToMarkdown(pageId);
+            const mdString = n2m.toMarkdownString(mdblocks);
+
+            const outDir = path.join(process.cwd(), "content");
+            if (!fs.existsSync(outDir)) {
+              fs.mkdirSync(outDir, { recursive: true });
+            }
+
+            fs.writeFileSync(path.join(outDir, "artigo.md"), mdString.parent);
+            console.log("Artigo salvo em content/artigo.md com sucesso!");
+          }
+
+          main().catch(err => {
+            console.error("Erro ao sincronizar:", err);
+            process.exit(1);
+          });
+          '
 
       - name: Commit and Push changes
         run: |
