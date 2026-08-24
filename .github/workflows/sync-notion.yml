@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Notion Dependencies
         run: npm install @notionhq/client notion-to-md
@@ -73,7 +73,7 @@ jobs:
           git add content/
           git diff --quiet && git diff --staged --quiet || (git commit -m "docs: sync latest Notion notes [skip ci]" && git push)
 
-      # 3. Clona o motor do Quartz v4 e compila
+      # 3. Clona o Quartz v4 e compila
       - name: Setup & Build Quartz
         run: |
           git clone https://github.com/jackyzha0/quartz.git __quartz
