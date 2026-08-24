@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sync-and-build:
+  sync-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -29,7 +29,7 @@ jobs:
       - name: Install Notion Dependencies
         run: npm install @notionhq/client notion-to-md
 
-      # 1. Puxa o conteúdo atualizado do Notion
+      # 1. Converte do Notion para Markdown
       - name: Fetch and Convert Notion Content
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
@@ -49,15 +49,14 @@ jobs:
             const outDir = path.join(process.cwd(), "content");
             if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-            console.log("Sincronizando página raiz do Notion...");
+            console.log("Sincronizando Notion...");
             const mdblocks = await n2m.pageToMarkdown(rawId);
             const mdResult = n2m.toMarkdownString(mdblocks);
             const content = typeof mdResult === "string" ? mdResult : (mdResult.parent || "");
 
-            // Salva como index.md para ser a página inicial do Quartz
             const frontmatter = "---\ntitle: Home\n---\n\n";
             fs.writeFileSync(path.join(outDir, "index.md"), frontmatter + content);
-            console.log("Página inicial salva com sucesso em content/index.md");
+            console.log("Notion sincronizado com sucesso.");
           }
 
           main().catch(err => {
@@ -66,7 +65,7 @@ jobs:
           });
           '
 
-      # 2. Salva o markdown atualizado no git
+      # 2. Persiste os markdowns no repositório
       - name: Commit Notion Content
         run: |
           git config --global user.name "github-actions[bot]"
@@ -74,20 +73,21 @@ jobs:
           git add content/
           git diff --quiet && git diff --staged --quiet || (git commit -m "docs: sync latest Notion notes [skip ci]" && git push)
 
-      # 3. Clona e Executa o Quartz v4
-      - name: Setup Quartz
+      # 3. Clona o motor do Quartz v4 e compila
+      - name: Setup & Build Quartz
         run: |
-          npx quartz create -d . -s empty || true
-          npm install
+          git clone https://github.com/jackyzha0/quartz.git __quartz
+          cd __quartz
+          npm ci
+          rm -rf content/*
+          cp -r ../content/* content/
+          npx quartz build
 
-      - name: Build Quartz Site
-        run: npx quartz build
-
-      # 4. Envia o build para o GitHub Pages
+      # 4. Deploy no GitHub Pages
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: public
+          path: __quartz/public
 
       - name: Deploy to GitHub Pages
         id: deployment
