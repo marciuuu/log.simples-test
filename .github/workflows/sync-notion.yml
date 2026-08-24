@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Notion to Markdown CLI
+      - name: Install Notion to Markdown
         run: npm install @notionhq/client notion-to-md
 
       - name: Fetch and Convert Notion Content
@@ -41,14 +41,16 @@ jobs:
             console.log("Sincronizando página ID:", pageId);
 
             const mdblocks = await n2m.pageToMarkdown(pageId);
-            const mdString = n2m.toMarkdownString(mdblocks);
+            const mdResult = n2m.toMarkdownString(mdblocks);
+            
+            const content = typeof mdResult === "string" ? mdResult : (mdResult.parent || JSON.stringify(mdResult));
 
             const outDir = path.join(process.cwd(), "content");
             if (!fs.existsSync(outDir)) {
               fs.mkdirSync(outDir, { recursive: true });
             }
 
-            fs.writeFileSync(path.join(outDir, "artigo.md"), mdString.parent);
+            fs.writeFileSync(path.join(outDir, "artigo.md"), content);
             console.log("Artigo salvo em content/artigo.md com sucesso!");
           }
 
